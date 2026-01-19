@@ -148,8 +148,8 @@ bool Config::validate() const {
         return false;
     }
 
-    if (lookahead < 1 || lookahead > 10) {
-        std::cerr << "Error: lookahead must be between 1 and 10\n";
+    if (lookahead < 1 || lookahead > 256) {
+        std::cerr << "Error: lookahead must be between 1 and 256\n";
         return false;
     }
 
@@ -171,7 +171,7 @@ void Config::print_usage(const char* program_name) {
               << "  --s3-prefix PREFIX      S3 key prefix (default: empty)\n"
               << "  --cache-size SIZE       Cache size (e.g., 16G, 512M) (default: 16GB)\n"
               << "  --workers N             Number of S3 worker threads (1-128) (default: 8)\n"
-              << "  --lookahead N           Prefetch lookahead count (1-10) (default: 3)\n"
+              << "  --lookahead N           Prefetch lookahead count (1-256) (default: 3)\n"
               << "  --manifest PATH         File containing list of S3 keys to prefetch\n"
               << "  --metrics-port PORT     Prometheus metrics port (default: 9090)\n"
               << "  --enable-tracing        Enable performance tracing\n"

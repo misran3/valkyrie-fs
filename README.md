@@ -312,7 +312,7 @@ curl http://localhost:9090/metrics | grep cache_hit_rate
 Enable debug logging:
 
 ```bash
-sudo ./build/bin/valkyrie --mount /mnt/valkyrie --bucket my-data --log-level debug
+sudo ./build/bin/valkyrie --mount /mnt/valkyrie --bucket my-data --region us-west-2
 ```
 
 Check trace files for detailed operation logs:
