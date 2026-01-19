@@ -68,3 +68,15 @@ target_link_libraries(test_s3_mock
     ${AWSSDK_LINK_LIBRARIES}
     pthread
 )
+
+add_executable(test_predictor
+    tests/test_predictor.cpp
+    src/predictor.cpp
+    src/cache_manager.cpp
+    src/s3_worker_pool.cpp
+)
+target_include_directories(test_predictor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_predictor
+    ${AWSSDK_LINK_LIBRARIES}
+    pthread
+)
