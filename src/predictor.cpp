@@ -22,16 +22,20 @@ std::optional<std::string> Predictor::predict_next_sequential(const std::string&
     std::string number_str = matches[2].str();
     std::string suffix = matches[3].str();
 
-    // Parse number
-    int number = std::stoi(number_str);
-    int next_number = number + 1;
+    // Parse number - handle exceptions for malformed or out-of-range numbers
+    try {
+        int number = std::stoi(number_str);
+        int next_number = number + 1;
 
-    // Preserve padding (e.g., 042 -> 043, not 43)
-    int padding = number_str.length();
-    std::ostringstream oss;
-    oss << prefix << std::setw(padding) << std::setfill('0') << next_number << suffix;
+        // Preserve padding (e.g., 042 -> 043, not 43)
+        int padding = number_str.length();
+        std::ostringstream oss;
+        oss << prefix << std::setw(padding) << std::setfill('0') << next_number << suffix;
 
-    return oss.str();
+        return oss.str();
+    } catch (const std::exception&) {
+        return std::nullopt;  // Invalid numeric sequence
+    }
 }
 
 Predictor::Predictor(CacheManager& cache,
@@ -99,6 +103,9 @@ void Predictor::predictor_loop() {
     while (!stop_flag_) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
+        // Clean up completed downloads to prevent memory leak
+        cleanup_completed_downloads();
+
         std::string current;
         {
             std::lock_guard<std::mutex> lock(access_mutex_);
@@ -160,9 +167,35 @@ void Predictor::predict_and_prefetch(const std::string& s3_key) {
             in_flight_.insert(file_key);
         }
 
-        // Submit prefetch (entire file as single chunk for now - will improve later)
-        worker_pool_.submit(file_key, 0, DEFAULT_CHUNK_SIZE, Priority::NORMAL);
+        // Submit prefetch and track the future for cleanup
+        auto future = worker_pool_.submit(file_key, 0, DEFAULT_CHUNK_SIZE, Priority::NORMAL);
+
+        {
+            std::lock_guard<std::mutex> lock(in_flight_mutex_);
+            in_flight_futures_.emplace_back(file_key, future);
+        }
+
         stats_.prefetches_issued++;
+    }
+}
+
+void Predictor::cleanup_completed_downloads() {
+    std::lock_guard<std::mutex> lock(in_flight_mutex_);
+
+    // Remove completed downloads from tracking
+    auto it = in_flight_futures_.begin();
+    while (it != in_flight_futures_.end()) {
+        const auto& [file_key, future] = *it;
+
+        // Check if future is ready (completed or failed)
+        if (future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            // Remove from in_flight_ set
+            in_flight_.erase(file_key);
+            // Remove from futures vector
+            it = in_flight_futures_.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 

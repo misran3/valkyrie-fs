@@ -69,6 +69,12 @@ private:
     std::unordered_set<std::string> in_flight_;
     std::mutex in_flight_mutex_;
 
+    // Track futures to clean up completed downloads
+    std::vector<std::pair<std::string, std::shared_future<bool>>> in_flight_futures_;
+
+    // Clean up completed downloads from in_flight_ set
+    void cleanup_completed_downloads();
+
     // Predictor thread
     std::thread predictor_thread_;
     std::atomic<bool> stop_flag_;
