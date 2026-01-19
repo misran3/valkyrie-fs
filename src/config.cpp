@@ -6,6 +6,11 @@
 namespace valkyrie {
 
 bool Config::parse(int argc, char* argv[]) {
+    if (argc < 2) {
+        print_usage(argv[0]);
+        return false;
+    }
+
     // Simple argument parser (no external dependencies)
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
