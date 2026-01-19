@@ -148,6 +148,9 @@ bool Config::validate() const {
         return false;
     }
 
+    // Lookahead range: 1-256. Upper limit chosen to support aggressive prefetching
+    // while preventing excessive memory usage. With 4MB chunks and 256 lookahead,
+    // max prefetch buffer is ~1GB which is reasonable for modern systems.
     if (lookahead < 1 || lookahead > 256) {
         std::cerr << "Error: lookahead must be between 1 and 256\n";
         return false;
