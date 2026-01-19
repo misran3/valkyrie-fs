@@ -54,7 +54,11 @@ void* init(struct fuse_conn_info* conn, struct fuse_config* cfg);
 #endif
 void destroy(void* private_data);
 
-int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi);
+#ifdef __APPLE__
+int getattr(const char* path, struct stat* stbuf);  // macFUSE: 2 parameters
+#else
+int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi);  // libfuse3: 3 parameters
+#endif
 #ifdef __APPLE__
 int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
             off_t offset, struct fuse_file_info* fi);

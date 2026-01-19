@@ -173,6 +173,45 @@ void destroy(void* private_data) {
     }
 }
 
+#ifdef __APPLE__
+int getattr(const char* path, struct stat* stbuf) {
+    try {
+        FuseContext* ctx = get_valkyrie_context();
+        std::memset(stbuf, 0, sizeof(struct stat));
+
+        // Root directory
+        if (std::strcmp(path, "/") == 0) {
+            stbuf->st_mode = S_IFDIR | 0755;
+            stbuf->st_nlink = 2;
+            return 0;
+        }
+
+        // Regular file - assume all non-root paths are files in S3
+        std::string s3_key = path_to_s3_key(path);
+
+        // Check if we have size metadata
+        {
+            std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
+            auto it = ctx->file_sizes.find(s3_key);
+            if (it != ctx->file_sizes.end()) {
+                stbuf->st_mode = S_IFREG | 0444;  // Read-only
+                stbuf->st_nlink = 1;
+                stbuf->st_size = it->second;
+                return 0;
+            }
+        }
+
+        // File not in metadata cache - doesn't exist yet
+        // TODO Phase 6.6: open() callback will populate metadata cache on first access
+        // TODO Future: Add HeadObject request to verify existence in S3
+        return -ENOENT;
+
+    } catch (const std::exception& e) {
+        std::cerr << "getattr error: " << e.what() << "\n";
+        return -EIO;
+    }
+}
+#else
 int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi) {
     (void) fi;  // Unused
 
@@ -212,6 +251,7 @@ int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi) {
         return -EIO;
     }
 }
+#endif
 
 #ifdef __APPLE__
 int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
