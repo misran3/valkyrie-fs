@@ -17,9 +17,42 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 # AWS SDK for S3
 find_package(AWSSDK REQUIRED COMPONENTS s3)
 
-# Dependencies (will add later)
-# find_package(PkgConfig REQUIRED)
-# pkg_check_modules(FUSE3 REQUIRED fuse3)
+# FUSE dependency (platform-specific)
+if(APPLE)
+    # macFUSE on macOS (can be installed as framework or via pkg-config)
+    find_library(FUSE_LIBRARIES
+        NAMES osxfuse macfuse
+        PATHS /usr/local/lib /Library/Frameworks/macFUSE.framework
+        NO_DEFAULT_PATH
+    )
+    find_path(FUSE_INCLUDE_DIRS
+        NAMES fuse/fuse.h
+        PATHS /usr/local/include /Library/Frameworks/macFUSE.framework/Headers
+        NO_DEFAULT_PATH
+    )
+
+    # If not found in standard locations, try framework approach
+    if(NOT FUSE_LIBRARIES)
+        set(FUSE_LIBRARIES "/Library/Frameworks/macFUSE.framework/macFUSE")
+    endif()
+    if(NOT FUSE_INCLUDE_DIRS)
+        set(FUSE_INCLUDE_DIRS "/usr/local/include")
+    endif()
+
+    if(NOT EXISTS "${FUSE_LIBRARIES}" OR NOT EXISTS "${FUSE_INCLUDE_DIRS}/fuse/fuse.h")
+        message(FATAL_ERROR "macFUSE not found. Install with: brew install macfuse")
+    endif()
+
+    message(STATUS "Found macFUSE: ${FUSE_LIBRARIES}")
+    message(STATUS "FUSE include dir: ${FUSE_INCLUDE_DIRS}")
+else()
+    # libfuse3 on Linux
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FUSE3 REQUIRED fuse3)
+    set(FUSE_LIBRARIES ${FUSE3_LIBRARIES})
+    set(FUSE_INCLUDE_DIRS ${FUSE3_INCLUDE_DIRS})
+    message(STATUS "Found FUSE3: ${FUSE_LIBRARIES}")
+endif()
 
 # Source files
 set(SOURCES
@@ -34,11 +67,13 @@ add_executable(valkyrie ${SOURCES})
 # Include directories
 target_include_directories(valkyrie PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${FUSE_INCLUDE_DIRS}
 )
 
 # Link libraries
 target_link_libraries(valkyrie
     ${AWSSDK_LINK_LIBRARIES}
+    ${FUSE_LIBRARIES}
     pthread
 )
 

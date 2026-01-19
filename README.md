@@ -21,9 +21,17 @@ Valkyrie-FS intelligently prefetches upcoming shards while the GPU processes cur
 
 ### Dependencies
 
+Ubuntu/Debian:
 ```bash
 sudo apt install libfuse3-dev cmake g++ libssl-dev libcurl4-openssl-dev
 ```
+
+macOS:
+```bash
+brew install macfuse cmake
+```
+
+Note: macFUSE may require system reboot after installation.
 
 ### Install AWS SDK for C++
 
