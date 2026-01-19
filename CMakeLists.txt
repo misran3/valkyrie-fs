@@ -72,6 +72,7 @@ set(SOURCES
     src/predictor.cpp
     src/fuse_ops.cpp
     src/logger.cpp
+    src/metrics_server.cpp
 )
 
 # Main executable
