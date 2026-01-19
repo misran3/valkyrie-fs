@@ -25,7 +25,27 @@ Valkyrie-FS intelligently prefetches upcoming shards while the GPU processes cur
 sudo apt install libfuse3-dev cmake g++ libssl-dev libcurl4-openssl-dev
 ```
 
-AWS SDK for C++ (will be added in Phase 3)
+### Install AWS SDK for C++
+
+Ubuntu/Debian:
+```bash
+sudo apt install libaws-cpp-sdk-s3-dev
+```
+
+macOS:
+```bash
+brew install aws-sdk-cpp
+```
+
+From source (if package not available):
+```bash
+git clone --depth 1 --branch 1.11.200 https://github.com/aws/aws-sdk-cpp
+cd aws-sdk-cpp
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_ONLY="s3" -DENABLE_TESTING=OFF
+make -j$(nproc)
+sudo make install
+```
 
 ### Compile
 
@@ -52,7 +72,8 @@ See `docs/plans/2026-01-18-valkyrie-fs-design.md`
 ## Status
 
 Phase 1: Build system ✅
-Phase 2: Core data structures (in progress)
+Phase 2: Core data structures ✅
+Phase 3: S3 Worker Pool (in progress)
 
 ## License
 

@@ -14,8 +14,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# AWS SDK for S3
+find_package(AWSSDK REQUIRED COMPONENTS s3)
+
 # Dependencies (will add later)
-# find_package(AWSSDK REQUIRED COMPONENTS s3)
 # find_package(PkgConfig REQUIRED)
 # pkg_check_modules(FUSE3 REQUIRED fuse3)
 
@@ -32,8 +34,9 @@ target_include_directories(valkyrie PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Link libraries (will add later)
+# Link libraries
 target_link_libraries(valkyrie
+    ${AWSSDK_LINK_LIBRARIES}
     pthread
 )
 
