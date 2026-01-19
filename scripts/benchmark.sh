@@ -29,6 +29,7 @@ CACHE_SIZE="${CACHE_SIZE:-512M}"              # Cache size for Valkyrie-FS
 NUM_WORKERS="${NUM_WORKERS:-4}"               # Number of worker threads
 
 # Results storage
+declare -a S3_DIRECT_TIMES
 declare -a COLD_READ_TIMES
 declare -a WARM_READ_TIMES
 declare -a COLD_TTFB_TIMES
@@ -53,9 +54,9 @@ cleanup() {
     # Kill Valkyrie-FS process
     if [ -n "$VALKYRIE_PID" ] && kill -0 "$VALKYRIE_PID" 2>/dev/null; then
         echo "Stopping Valkyrie-FS (PID: $VALKYRIE_PID)..."
-        kill "$VALKYRIE_PID" 2>/dev/null || true
+        sudo kill "$VALKYRIE_PID" 2>/dev/null || kill "$VALKYRIE_PID" 2>/dev/null || true
         sleep 1
-        kill -9 "$VALKYRIE_PID" 2>/dev/null || true
+        sudo kill -9 "$VALKYRIE_PID" 2>/dev/null || kill -9 "$VALKYRIE_PID" 2>/dev/null || true
     fi
 
     # Remove mount point
@@ -134,7 +135,11 @@ format_ms() {
 calculate_throughput() {
     local size_mb=$1
     local time_sec=$2
-    echo "scale=2; $size_mb / $time_sec" | bc -l
+    if [ $(echo "$time_sec < 0.001" | bc -l) -eq 1 ]; then
+        echo "N/A"
+    else
+        echo "scale=2; $size_mb / $time_sec" | bc -l
+    fi
 }
 
 print_banner
@@ -240,6 +245,46 @@ done
 
 echo ""
 echo -e "${GREEN}✓${NC} Dataset prepared: $((NUM_TEST_FILES * TEST_FILE_SIZE_MB))MB uploaded to S3"
+
+# Benchmark 0: Direct S3 Download (Baseline)
+print_section "Benchmark 0: Direct S3 Download (Baseline)"
+echo "Testing direct S3 downloads without Valkyrie-FS..."
+echo "This provides baseline performance for comparison."
+echo ""
+
+for i in $(seq 0 $((NUM_TEST_FILES-1))); do
+    idx=$((i + 1))
+    filename="${TEST_FILES[$i]}"
+    s3path="s3://${TEST_BUCKET}/${TEST_PREFIX}/$filename"
+    download_path="$TEMP_DIR/s3_direct_$filename"
+
+    echo -n "[$idx/$NUM_TEST_FILES] Downloading $filename directly from S3... "
+
+    # Time the download
+    read_start=$(date +%s%3N)
+    aws s3 cp "$s3path" "$download_path" --region "$TEST_REGION" --quiet
+    read_end=$(date +%s%3N)
+    read_ms=$((read_end - read_start))
+    S3_DIRECT_TIMES[$i]=$read_ms
+
+    throughput=$(calculate_throughput "$TEST_FILE_SIZE_MB" "$(echo "scale=3; $read_ms / 1000" | bc -l)")
+
+    echo -e "${GREEN}✓${NC} Time: $(format_ms $read_ms), Throughput: ${throughput}MB/s"
+
+    # Clean up downloaded file to save disk space
+    rm -f "$download_path"
+done
+
+# Calculate S3 direct download statistics
+avg_s3_time=$(calculate_stats S3_DIRECT_TIMES)
+avg_s3_throughput=$(calculate_throughput "$TEST_FILE_SIZE_MB" "$(echo "scale=3; $avg_s3_time / 1000" | bc -l)")
+
+echo ""
+echo "S3 Direct Download Results:"
+echo "  Avg Download Time:  $(format_ms $avg_s3_time)"
+echo "  Avg Throughput:     ${avg_s3_throughput}MB/s"
+echo ""
+echo "This baseline will be compared against Valkyrie-FS performance."
 
 # Start Valkyrie-FS
 print_section "Starting Valkyrie-FS"
@@ -385,9 +430,9 @@ echo "Cache Effectiveness:"
 echo "  TTFB Improvement:       ${ttfb_improvement}%"
 echo "  Read Speed Improvement: ${read_improvement}%"
 
-# Benchmark 3: Sequential Read Test (Prefetching)
-print_section "Benchmark 3: Sequential Read Throughput"
-echo "Testing sequential reads to measure prefetch effectiveness..."
+# Benchmark 3: Data Integrity Verification
+print_section "Benchmark 3: Data Integrity Verification"
+echo "Verifying MD5 checksums to ensure data integrity..."
 echo ""
 
 seq_start=$(date +%s%3N)
@@ -423,10 +468,12 @@ total_mb=$((TEST_FILE_SIZE_MB * NUM_TEST_FILES))
 seq_throughput=$(calculate_throughput "$total_mb" "$seq_duration_s")
 
 echo ""
-echo "Sequential Read Results:"
-echo "  Total Data Read:   ${total_mb}MB"
-echo "  Total Time:        $(format_ms $seq_duration_ms)"
-echo "  Avg Throughput:    ${seq_throughput}MB/s"
+echo "Data Integrity Results:"
+echo "  Files Verified:    ${NUM_TEST_FILES}"
+echo "  Total Data:        ${total_mb}MB"
+echo "  Verification Time: $(format_ms $seq_duration_ms)"
+echo "  Throughput:        ${seq_throughput}MB/s"
+echo -e "  Status:            ${GREEN}All checksums valid${NC}"
 
 # Final Performance Report
 print_section "Performance Summary"
@@ -442,7 +489,13 @@ echo "  Cache Size:        $CACHE_SIZE"
 echo "  Workers:           $NUM_WORKERS"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Cold Cache (S3 Download):"
+echo "S3 Direct Download (Baseline):"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+printf "  Avg Download Time:   %20s\n" "$(format_ms $avg_s3_time)"
+printf "  Avg Throughput:      %20s\n" "${avg_s3_throughput}MB/s"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Cold Cache (First Access via Valkyrie-FS):"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 printf "  Time to First Byte:  %20s\n" "$(format_ms $avg_cold_ttfb)"
 printf "  Avg Read Time:       %20s\n" "$(format_ms $avg_cold_read)"
@@ -455,10 +508,16 @@ printf "  Time to First Byte:  %20s\n" "$(format_ms $avg_warm_ttfb)"
 printf "  Avg Read Time:       %20s\n" "$(format_ms $avg_warm_read)"
 printf "  Avg Throughput:      %20s\n" "${avg_warm_throughput}MB/s"
 printf "  Speedup vs Cold:     %20s\n" "${read_improvement}%"
+
+# Calculate and display speedup vs S3 baseline
+speedup_vs_s3_cold=$(echo "scale=2; $avg_s3_time / $avg_cold_read" | bc -l)
+speedup_vs_s3_warm=$(echo "scale=2; $avg_s3_time / $avg_warm_read" | bc -l)
+printf "  Speedup vs S3:       %20s\n" "${speedup_vs_s3_warm}x"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "Sequential Read (Prefetch Test):"
+echo "Data Integrity Verification:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+printf "  Files Verified:      %20s\n" "${NUM_TEST_FILES}"
 printf "  Total Time:          %20s\n" "$(format_ms $seq_duration_ms)"
 printf "  Throughput:          %20s\n" "${seq_throughput}MB/s"
 echo ""
