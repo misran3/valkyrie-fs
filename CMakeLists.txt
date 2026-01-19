@@ -22,12 +22,18 @@ if(APPLE)
     # macFUSE on macOS (can be installed as framework or via pkg-config)
     find_library(FUSE_LIBRARIES
         NAMES osxfuse macfuse
-        PATHS /usr/local/lib /Library/Frameworks/macFUSE.framework
+        PATHS
+            /usr/local/lib
+            /opt/homebrew/lib
+            /Library/Frameworks/macFUSE.framework
         NO_DEFAULT_PATH
     )
     find_path(FUSE_INCLUDE_DIRS
         NAMES fuse/fuse.h
-        PATHS /usr/local/include /Library/Frameworks/macFUSE.framework/Headers
+        PATHS
+            /usr/local/include
+            /opt/homebrew/include
+            /Library/Frameworks/macFUSE.framework/Headers
         NO_DEFAULT_PATH
     )
 
@@ -51,7 +57,9 @@ else()
     pkg_check_modules(FUSE3 REQUIRED fuse3)
     set(FUSE_LIBRARIES ${FUSE3_LIBRARIES})
     set(FUSE_INCLUDE_DIRS ${FUSE3_INCLUDE_DIRS})
+    set(FUSE_LIBRARY_DIRS ${FUSE3_LIBRARY_DIRS})
     message(STATUS "Found FUSE3: ${FUSE_LIBRARIES}")
+    message(STATUS "FUSE include dir: ${FUSE3_INCLUDE_DIRS}")
 endif()
 
 # Source files
@@ -76,6 +84,11 @@ target_link_libraries(valkyrie
     ${FUSE_LIBRARIES}
     pthread
 )
+
+# Add link directories for non-standard FUSE installations on Linux
+if(FUSE_LIBRARY_DIRS)
+    target_link_directories(valkyrie PRIVATE ${FUSE_LIBRARY_DIRS})
+endif()
 
 # Print configuration
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
