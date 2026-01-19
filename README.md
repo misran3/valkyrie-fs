@@ -65,6 +65,28 @@ sudo ./bin/valkyrie \
   --workers 8
 ```
 
+## Testing
+
+### Unit Tests
+
+```bash
+cd build
+make test_types && ./bin/test_types
+make test_queue && ./bin/test_queue
+make test_cache_manager && ./bin/test_cache_manager
+make test_s3_mock && ./bin/test_s3_mock
+```
+
+### S3 Integration Test
+
+Requires AWS credentials and a test bucket:
+
+```bash
+export TEST_BUCKET=your-test-bucket
+export TEST_REGION=us-west-2
+./scripts/test_s3_integration.sh
+```
+
 ## Architecture
 
 See `docs/plans/2026-01-18-valkyrie-fs-design.md`
