@@ -327,14 +327,14 @@ curl http://localhost:9090/metrics
 
 ## Status
 
-Phase 1: Build system ✅
-Phase 2: Core data structures ✅
-Phase 3: S3 Worker Pool ✅
-Phase 4: Prefetch Engine ✅
-Phase 5: FUSE Filesystem ✅
-Phase 6: Metrics & Observability ✅
-Phase 7: Command-line Interface ✅
-Phase 8: Integration & Testing ✅
+* Phase 1: Build system ✅
+* Phase 2: Core data structures ✅
+* Phase 3: S3 Worker Pool ✅
+* Phase 4: Prefetch Engine ✅
+* Phase 5: FUSE Filesystem ✅
+* Phase 6: Metrics & Observability ✅
+* Phase 7: Command-line Interface ✅
+* Phase 8: Integration & Testing ✅
 
 ## License
 
