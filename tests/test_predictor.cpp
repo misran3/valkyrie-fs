@@ -60,6 +60,7 @@ void test_manifest_loading() {
 
     bool loaded = predictor.load_manifest("tests/test_manifest.txt");
     assert(loaded);
+    assert(predictor.get_manifest_size() == 5);  // Verify correct count
 
     std::cout << "test_manifest_loading: PASS\n";
 }

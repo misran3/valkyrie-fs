@@ -48,6 +48,8 @@ public:
 
     const Stats& get_stats() const { return stats_; }
 
+    size_t get_manifest_size() const { return manifest_.size(); }
+
 private:
     void predictor_loop();
     void predict_and_prefetch(const std::string& s3_key);
