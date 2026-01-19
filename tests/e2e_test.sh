@@ -13,10 +13,10 @@ NC='\033[0m' # No Color
 
 # Test configuration
 TEST_BUCKET="${TEST_BUCKET:-valkyrie-test-bucket}"
-TEST_REGION="${TEST_REGION:-us-east-1}"
+TEST_REGION="${TEST_REGION:-us-west-2}"
 MOUNT_POINT="${MOUNT_POINT:-/tmp/valkyrie-mount}"
 TEST_PREFIX="e2e-test-$(date +%s)"
-VALKYRIE_BIN="./build/valkyrie-fs"
+VALKYRIE_BIN="./build/bin/valkyrie"
 TEMP_DIR="/tmp/valkyrie-e2e-$$"
 VALKYRIE_PID=""
 
@@ -141,8 +141,9 @@ print_section "Generating and Uploading Test Files"
 declare -a TEST_FILES
 declare -a TEST_MD5S
 
-for i in $(seq 1 $NUM_TEST_FILES); do
-    filename="testfile${i}.dat"
+for i in $(seq 0 $((NUM_TEST_FILES-1))); do
+    idx=$((i + 1))  # For filename numbering
+    filename="testfile${idx}.dat"
     filepath="$TEMP_DIR/$filename"
     s3path="s3://${TEST_BUCKET}/${TEST_PREFIX}/$filename"
 
@@ -175,11 +176,13 @@ echo "  Mount: $MOUNT_POINT"
 echo "  Prefix: $TEST_PREFIX"
 
 # Start in background and capture PID
-"$VALKYRIE_BIN" \
+sudo "$VALKYRIE_BIN" \
     --bucket "$TEST_BUCKET" \
     --region "$TEST_REGION" \
     --mount "$MOUNT_POINT" \
     --prefix "$TEST_PREFIX" \
+    --cache-size 512M \
+    --workers 4 \
     > "$TEMP_DIR/valkyrie.log" 2>&1 &
 
 VALKYRIE_PID=$!
@@ -223,8 +226,8 @@ ls -lh "$MOUNT_POINT"
 # Test 2: Read first file and verify MD5
 print_section "Test 2: MD5 Verification"
 
-testfile="${TEST_FILES[1]}"
-expected_md5="${TEST_MD5S[1]}"
+testfile="${TEST_FILES[0]}"
+expected_md5="${TEST_MD5S[0]}"
 
 echo "Reading $testfile from mounted filesystem..."
 mounted_file="$MOUNT_POINT/$testfile"
@@ -256,7 +259,7 @@ print_section "Test 3: Sequential Read Performance"
 echo "Reading all files sequentially to test prefetching..."
 start_time=$(date +%s)
 
-for i in $(seq 1 $NUM_TEST_FILES); do
+for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     testfile="${TEST_FILES[$i]}"
     expected_md5="${TEST_MD5S[$i]}"
     mounted_file="$MOUNT_POINT/$testfile"
