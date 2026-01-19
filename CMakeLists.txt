@@ -48,3 +48,7 @@ target_include_directories(test_types PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_executable(test_queue tests/test_thread_safe_queue.cpp)
 target_include_directories(test_queue PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(test_queue pthread)
+
+add_executable(test_cache_manager tests/test_cache_manager.cpp src/cache_manager.cpp)
+target_include_directories(test_cache_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_cache_manager pthread)
