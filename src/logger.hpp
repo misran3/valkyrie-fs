@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <sstream>
+#include <mutex>
 
 namespace valkyrie {
 

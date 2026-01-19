@@ -4,7 +4,9 @@
 namespace valkyrie {
 
 void Logger::log(LogLevel level, const std::string& component, const std::string& message) {
-    // Simple structured output: TIMESTAMP [LEVEL] component: message
+    static std::mutex log_mutex;
+    std::lock_guard<std::mutex> lock(log_mutex);
+
     std::cout << get_timestamp() << " "
               << "[" << level_to_string(level) << "] "
               << component << ": "
@@ -28,8 +30,11 @@ std::string Logger::get_timestamp() {
         now.time_since_epoch()
     ) % 1000;
 
+    std::tm tm_buf;
+    localtime_r(&time_t_now, &tm_buf);
+
     std::ostringstream oss;
-    oss << std::put_time(std::localtime(&time_t_now), "%Y-%m-%d %H:%M:%S")
+    oss << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S")
         << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
     return oss.str();

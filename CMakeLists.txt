@@ -71,6 +71,7 @@ set(SOURCES
     src/s3_worker_pool.cpp
     src/predictor.cpp
     src/fuse_ops.cpp
+    src/logger.cpp
 )
 
 # Main executable
