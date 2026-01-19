@@ -338,4 +338,4 @@ Phase 8: Integration & Testing ✅
 
 ## License
 
-MIT (placeholder)
+MIT License. See [`LICENSE`](./LICENSE) file for details.
