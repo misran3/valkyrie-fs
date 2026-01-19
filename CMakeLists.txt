@@ -40,3 +40,7 @@ target_link_libraries(valkyrie
 # Print configuration
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
+
+# Simple test executable (before we have GTest)
+add_executable(test_types tests/test_types.cpp)
+target_include_directories(test_types PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
