@@ -180,7 +180,7 @@ sudo "$VALKYRIE_BIN" \
     --bucket "$TEST_BUCKET" \
     --region "$TEST_REGION" \
     --mount "$MOUNT_POINT" \
-    --prefix "$TEST_PREFIX" \
+    --s3-prefix "$TEST_PREFIX" \
     --cache-size 512M \
     --workers 4 \
     > "$TEMP_DIR/valkyrie.log" 2>&1 &
