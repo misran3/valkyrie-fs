@@ -47,7 +47,11 @@ private:
 // FUSE operation callbacks
 namespace fuse_ops {
 
+#ifdef __APPLE__
+void* init(struct fuse_conn_info* conn);  // macFUSE doesn't have fuse_config
+#else
 void* init(struct fuse_conn_info* conn, struct fuse_config* cfg);
+#endif
 void destroy(void* private_data);
 
 int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi);

@@ -22,13 +22,12 @@ find_package(AWSSDK REQUIRED COMPONENTS s3)
 
 # FUSE dependency (platform-specific)
 if(APPLE)
-    # macFUSE on macOS (can be installed as framework or via pkg-config)
+    # macFUSE on macOS - link with libfuse.dylib
     find_library(FUSE_LIBRARIES
-        NAMES osxfuse macfuse
+        NAMES fuse osxfuse macfuse
         PATHS
             /usr/local/lib
             /opt/homebrew/lib
-            /Library/Frameworks/macFUSE.framework
         NO_DEFAULT_PATH
     )
     find_path(FUSE_INCLUDE_DIRS
@@ -36,19 +35,18 @@ if(APPLE)
         PATHS
             /usr/local/include
             /opt/homebrew/include
-            /Library/Frameworks/macFUSE.framework/Headers
         NO_DEFAULT_PATH
     )
 
-    # If not found in standard locations, try framework approach
+    # Fallback to default locations
     if(NOT FUSE_LIBRARIES)
-        set(FUSE_LIBRARIES "/Library/Frameworks/macFUSE.framework/macFUSE")
+        find_library(FUSE_LIBRARIES NAMES fuse)
     endif()
     if(NOT FUSE_INCLUDE_DIRS)
-        set(FUSE_INCLUDE_DIRS "/usr/local/include")
+        find_path(FUSE_INCLUDE_DIRS NAMES fuse/fuse.h)
     endif()
 
-    if(NOT EXISTS "${FUSE_LIBRARIES}" OR NOT EXISTS "${FUSE_INCLUDE_DIRS}/fuse/fuse.h")
+    if(NOT FUSE_LIBRARIES OR NOT FUSE_INCLUDE_DIRS)
         message(FATAL_ERROR "macFUSE not found. Install with: brew install macfuse")
     endif()
 
@@ -68,8 +66,11 @@ endif()
 # Source files
 set(SOURCES
     src/main.cpp
+    src/config.cpp
     src/cache_manager.cpp
     src/s3_worker_pool.cpp
+    src/predictor.cpp
+    src/fuse_ops.cpp
 )
 
 # Main executable
