@@ -80,3 +80,7 @@ target_link_libraries(test_predictor
     ${AWSSDK_LINK_LIBRARIES}
     pthread
 )
+
+add_executable(test_config tests/test_config.cpp src/config.cpp)
+target_include_directories(test_config PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_config ${AWSSDK_LINK_LIBRARIES})
