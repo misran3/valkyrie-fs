@@ -358,13 +358,13 @@ int read(const char* path, char* buf, size_t size, off_t offset,
                 std::cerr << "Chunk missing after download: " << s3_key << "\n";
                 return -EIO;
             }
-
-            // Mark as accessed (promote to HOT zone)
-            ctx->cache->access(s3_key, chunk_offset);
-        } else {
-            // CACHE HIT
-            ctx->cache->access(s3_key, chunk_offset);
         }
+
+        // Mark as accessed BEFORE dereferencing to minimize race window
+        // While the chunk data is copied (safe even if evicted), we must ensure
+        // access() is called as close to get_chunk() as possible to maintain
+        // accurate LRU statistics and prevent accessing stale cache entries.
+        ctx->cache->access(s3_key, chunk_offset);
 
         const auto& chunk = *chunk_opt;
 
