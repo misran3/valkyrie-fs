@@ -1,6 +1,7 @@
 #include "fuse_ops.hpp"
 #include <iostream>
 #include <cstring>
+#include <fcntl.h>
 #include <stdexcept>
 
 namespace valkyrie {
@@ -277,6 +278,120 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     }
 }
 #endif
+
+int open(const char* path, struct fuse_file_info* fi) {
+    try {
+        // Only allow read-only access
+        if ((fi->flags & O_ACCMODE) != O_RDONLY) {
+            return -EACCES;
+        }
+
+        FuseContext* ctx = get_valkyrie_context();
+        std::string s3_key = path_to_s3_key(path);
+
+        // Notify predictor of file access
+        ctx->predictor->on_file_accessed(s3_key);
+
+        // Update metadata cache
+        {
+            std::unique_lock<std::shared_mutex> lock(ctx->metadata_mutex);
+            if (ctx->file_sizes.find(s3_key) == ctx->file_sizes.end()) {
+                // Add with default size (will be updated on first read)
+                ctx->file_sizes[s3_key] = 1024 * 1024 * 1024;  // 1GB default
+            }
+        }
+
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "open error: " << e.what() << "\n";
+        return -EIO;
+    }
+}
+
+int release(const char* path, struct fuse_file_info* fi) {
+    try {
+        (void) path;
+        (void) fi;
+        // No cleanup needed for read-only files
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "release error: " << e.what() << "\n";
+        return -EIO;
+    }
+}
+
+int read(const char* path, char* buf, size_t size, off_t offset,
+         struct fuse_file_info* fi) {
+    try {
+        (void) fi;
+
+        FuseContext* ctx = get_valkyrie_context();
+        std::string s3_key = path_to_s3_key(path);
+
+        // Determine chunk offset
+        size_t chunk_offset = (offset / DEFAULT_CHUNK_SIZE) * DEFAULT_CHUNK_SIZE;
+        size_t offset_in_chunk = offset % DEFAULT_CHUNK_SIZE;
+
+        // Try to get chunk from cache
+        auto chunk_opt = ctx->cache->get_chunk(s3_key, chunk_offset);
+
+        if (!chunk_opt.has_value()) {
+            // CACHE MISS - Block and download with URGENT priority
+            std::cout << "Cache miss: " << s3_key << " at offset " << offset << "\n";
+
+            // Submit URGENT download request
+            auto future = ctx->worker_pool->submit(
+                s3_key, chunk_offset, DEFAULT_CHUNK_SIZE, Priority::URGENT
+            );
+
+            // Wait for download (blocks FUSE thread)
+            bool success = future.get();
+
+            if (!success) {
+                std::cerr << "Failed to download chunk: " << s3_key << " offset " << chunk_offset << "\n";
+                return -EIO;  // I/O error
+            }
+
+            // Retrieve from cache (should be present now)
+            chunk_opt = ctx->cache->get_chunk(s3_key, chunk_offset);
+            if (!chunk_opt.has_value()) {
+                std::cerr << "Chunk missing after download: " << s3_key << "\n";
+                return -EIO;
+            }
+
+            // Mark as accessed (promote to HOT zone)
+            ctx->cache->access(s3_key, chunk_offset);
+        } else {
+            // CACHE HIT
+            ctx->cache->access(s3_key, chunk_offset);
+        }
+
+        const auto& chunk = *chunk_opt;
+
+        // Calculate how much to copy from this chunk
+        size_t available = chunk.data.size() - offset_in_chunk;
+        size_t to_copy = std::min(size, available);
+
+        // Copy data to FUSE buffer
+        std::memcpy(buf, chunk.data.data() + offset_in_chunk, to_copy);
+
+        // If we need more data (crossing chunk boundary), recursively read next chunk
+        if (to_copy < size) {
+            // Read from next chunk
+            int bytes_read = read(path, buf + to_copy, size - to_copy,
+                                 offset + to_copy, fi);
+            if (bytes_read < 0) {
+                return bytes_read;  // Propagate error
+            }
+            to_copy += bytes_read;
+        }
+
+        return to_copy;
+    } catch (const std::exception& e) {
+        std::cerr << "read error: " << e.what() << "\n";
+        return -EIO;
+    }
+}
 
 }  // namespace fuse_ops
 
