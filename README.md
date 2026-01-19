@@ -66,7 +66,7 @@ make -j$(nproc)
 ### Run
 
 ```bash
-sudo ./bin/valkyrie \
+sudo ./build/bin/valkyrie \
   --mount /mnt/valkyrie \
   --bucket my-training-data \
   --cache-size 16G \
@@ -106,7 +106,7 @@ See `docs/plans/2026-01-18-valkyrie-fs-design.md`
 Mount an S3 bucket as a local filesystem:
 
 ```bash
-sudo ./bin/valkyrie \
+sudo ./build/bin/valkyrie \
   --mount /mnt/valkyrie \
   --bucket my-training-data \
   --cache-size 16G \
@@ -150,7 +150,7 @@ shards/shard_0003.tar
 EOF
 
 # Mount with manifest
-sudo ./bin/valkyrie \
+sudo ./build/bin/valkyrie \
   --mount /mnt/valkyrie \
   --bucket my-training-data \
   --manifest /tmp/training_manifest.txt \
@@ -312,7 +312,7 @@ curl http://localhost:9090/metrics | grep cache_hit_rate
 Enable debug logging:
 
 ```bash
-sudo ./bin/valkyrie --mount /mnt/valkyrie --bucket my-data --log-level debug
+sudo ./build/bin/valkyrie --mount /mnt/valkyrie --bucket my-data --log-level debug
 ```
 
 Check trace files for detailed operation logs:
