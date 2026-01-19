@@ -60,7 +60,7 @@ private:
     int lookahead_;
 
     // Manifest mode
-    bool manifest_mode_;
+    std::atomic<bool> manifest_mode_;
     std::vector<std::string> manifest_;
 
     // Recent access tracking

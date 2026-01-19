@@ -11,7 +11,7 @@ std::optional<std::string> Predictor::predict_next_sequential(const std::string&
     // Pattern: prefix + number + suffix
     // Example: "shard_042.bin" -> prefix="shard_", number=42, suffix=".bin"
     // Use non-greedy (.*?) to avoid capturing trailing digits in the prefix
-    std::regex pattern(R"(^(.*?)(\d+)(\..*)$)");
+    static const std::regex pattern(R"(^(.*?)(\d+)(\..*)$)");
     std::smatch matches;
 
     if (!std::regex_match(filename, matches, pattern)) {
@@ -46,6 +46,9 @@ Predictor::Predictor(CacheManager& cache,
     , lookahead_(lookahead)
     , manifest_mode_(false)
     , stop_flag_(false) {
+    if (lookahead_ < 0 || lookahead_ > 100) {
+        throw std::invalid_argument("lookahead must be between 0 and 100");
+    }
 }
 
 Predictor::~Predictor() {
@@ -93,7 +96,7 @@ bool Predictor::load_manifest(const std::string& manifest_path) {
         }
     }
 
-    manifest_mode_ = !manifest_.empty();
+    manifest_mode_.store(!manifest_.empty());
 
     std::cout << "Predictor: Loaded manifest with " << manifest_.size() << " entries\n";
     return true;
@@ -122,7 +125,7 @@ void Predictor::predict_and_prefetch(const std::string& s3_key) {
 
     std::vector<std::string> to_prefetch;
 
-    if (manifest_mode_) {
+    if (manifest_mode_.load()) {
         // Manifest-driven prediction
         auto pos_opt = find_in_manifest(s3_key);
         if (!pos_opt.has_value()) return;
@@ -164,14 +167,15 @@ void Predictor::predict_and_prefetch(const std::string& s3_key) {
         {
             std::lock_guard<std::mutex> lock(in_flight_mutex_);
             if (in_flight_.count(file_key)) continue;
-            in_flight_.insert(file_key);
         }
 
-        // Submit prefetch and track the future for cleanup
+        // Submit prefetch (may throw)
         auto future = worker_pool_.submit(file_key, 0, DEFAULT_CHUNK_SIZE, Priority::NORMAL);
 
+        // Only track if submit succeeded
         {
             std::lock_guard<std::mutex> lock(in_flight_mutex_);
+            in_flight_.insert(file_key);
             in_flight_futures_.emplace_back(file_key, future);
         }
 
