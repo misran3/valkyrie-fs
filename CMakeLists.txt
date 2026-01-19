@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 3.20)
+project(valkyrie-fs VERSION 0.1.0 LANGUAGES CXX)
+
+# C++20 required for concepts, ranges
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Compiler flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address,undefined")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+
+# Output directories
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# Dependencies (will add later)
+# find_package(AWSSDK REQUIRED COMPONENTS s3)
+# find_package(PkgConfig REQUIRED)
+# pkg_check_modules(FUSE3 REQUIRED fuse3)
+
+# Source files (start with minimal main)
+set(SOURCES
+    src/main.cpp
+)
+
+# Main executable
+add_executable(valkyrie ${SOURCES})
+
+# Include directories
+target_include_directories(valkyrie PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Link libraries (will add later)
+target_link_libraries(valkyrie
+    pthread
+)
+
+# Print configuration
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C++ standard: ${CMAKE_CXX_STANDARD}")
