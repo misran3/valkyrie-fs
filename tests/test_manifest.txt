@@ -1,0 +1,6 @@
+# Test manifest for Valkyrie
+shard_001.bin
+shard_005.bin
+shard_003.bin
+shard_002.bin
+shard_010.bin

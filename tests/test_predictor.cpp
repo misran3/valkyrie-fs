@@ -48,12 +48,29 @@ void test_rollover() {
     std::cout << "test_rollover: PASS\n";
 }
 
+void test_manifest_loading() {
+    CacheManager cache(16 * 1024 * 1024);
+
+    S3Config config;
+    config.bucket = "test";
+    config.region = "us-west-2";
+
+    S3WorkerPool pool(config, cache, 2);
+    Predictor predictor(cache, pool, 3);
+
+    bool loaded = predictor.load_manifest("tests/test_manifest.txt");
+    assert(loaded);
+
+    std::cout << "test_manifest_loading: PASS\n";
+}
+
 int main() {
     test_simple_sequential();
     test_zero_padded();
     test_no_padding();
     test_no_pattern();
     test_rollover();
+    test_manifest_loading();
     std::cout << "All Predictor tests passed!\n";
     return 0;
 }
