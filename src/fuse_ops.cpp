@@ -163,39 +163,41 @@ void destroy(void* private_data) {
 int getattr(const char* path, struct stat* stbuf, struct fuse_file_info* fi) {
     (void) fi;  // Unused
 
-    FuseContext* ctx = get_valkyrie_context();
-    std::memset(stbuf, 0, sizeof(struct stat));
+    try {
+        FuseContext* ctx = get_valkyrie_context();
+        std::memset(stbuf, 0, sizeof(struct stat));
 
-    // Root directory
-    if (std::strcmp(path, "/") == 0) {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-        return 0;
-    }
-
-    // Regular file - assume all non-root paths are files in S3
-    std::string s3_key = path_to_s3_key(path);
-
-    // Check if we have size metadata
-    {
-        std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
-        auto it = ctx->file_sizes.find(s3_key);
-        if (it != ctx->file_sizes.end()) {
-            stbuf->st_mode = S_IFREG | 0444;  // Read-only
-            stbuf->st_nlink = 1;
-            stbuf->st_size = it->second;
+        // Root directory
+        if (std::strcmp(path, "/") == 0) {
+            stbuf->st_mode = S_IFDIR | 0755;
+            stbuf->st_nlink = 2;
             return 0;
         }
+
+        // Regular file - assume all non-root paths are files in S3
+        std::string s3_key = path_to_s3_key(path);
+
+        // Check if we have size metadata
+        {
+            std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
+            auto it = ctx->file_sizes.find(s3_key);
+            if (it != ctx->file_sizes.end()) {
+                stbuf->st_mode = S_IFREG | 0444;  // Read-only
+                stbuf->st_nlink = 1;
+                stbuf->st_size = it->second;
+                return 0;
+            }
+        }
+
+        // File not in metadata cache - doesn't exist yet
+        // TODO Phase 6.6: open() callback will populate metadata cache on first access
+        // TODO Future: Add HeadObject request to verify existence in S3
+        return -ENOENT;
+
+    } catch (const std::exception& e) {
+        std::cerr << "getattr error: " << e.what() << "\n";
+        return -EIO;
     }
-
-    // File not in metadata cache - fetch from S3 (HeadObject)
-    // For now, assume file exists and return default size
-    // TODO: Add HeadObject request to get actual size
-    stbuf->st_mode = S_IFREG | 0444;
-    stbuf->st_nlink = 1;
-    stbuf->st_size = 1024 * 1024 * 1024;  // Default 1GB (will be updated on read)
-
-    return 0;
 }
 
 #ifdef __APPLE__
@@ -204,24 +206,30 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     (void) offset;
     (void) fi;
 
-    // Only support root directory listing
-    if (std::strcmp(path, "/") != 0) {
-        return -ENOENT;
+    try {
+        // Only support root directory listing
+        if (std::strcmp(path, "/") != 0) {
+            return -ENOENT;
+        }
+
+        // Add standard entries
+        filler(buf, ".", NULL, 0);
+        filler(buf, "..", NULL, 0);
+
+        // List all files from metadata cache
+        FuseContext* ctx = get_valkyrie_context();
+        std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
+
+        for (const auto& [s3_key, size] : ctx->file_sizes) {
+            filler(buf, s3_key.c_str(), NULL, 0);
+        }
+
+        return 0;
+
+    } catch (const std::exception& e) {
+        std::cerr << "readdir error: " << e.what() << "\n";
+        return -EIO;
     }
-
-    // Add standard entries
-    filler(buf, ".", NULL, 0);
-    filler(buf, "..", NULL, 0);
-
-    // List all files from metadata cache
-    FuseContext* ctx = get_valkyrie_context();
-    std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
-
-    for (const auto& [s3_key, size] : ctx->file_sizes) {
-        filler(buf, s3_key.c_str(), NULL, 0);
-    }
-
-    return 0;
 }
 #else
 int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
@@ -231,24 +239,30 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
     (void) fi;
     (void) flags;
 
-    // Only support root directory listing
-    if (std::strcmp(path, "/") != 0) {
-        return -ENOENT;
+    try {
+        // Only support root directory listing
+        if (std::strcmp(path, "/") != 0) {
+            return -ENOENT;
+        }
+
+        // Add standard entries
+        filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
+        filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
+
+        // List all files from metadata cache
+        FuseContext* ctx = get_valkyrie_context();
+        std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
+
+        for (const auto& [s3_key, size] : ctx->file_sizes) {
+            filler(buf, s3_key.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+        }
+
+        return 0;
+
+    } catch (const std::exception& e) {
+        std::cerr << "readdir error: " << e.what() << "\n";
+        return -EIO;
     }
-
-    // Add standard entries
-    filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
-    filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
-
-    // List all files from metadata cache
-    FuseContext* ctx = get_valkyrie_context();
-    std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
-
-    for (const auto& [s3_key, size] : ctx->file_sizes) {
-        filler(buf, s3_key.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
-    }
-
-    return 0;
 }
 #endif
 
