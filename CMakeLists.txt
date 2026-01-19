@@ -21,9 +21,11 @@ find_package(AWSSDK REQUIRED COMPONENTS s3)
 # find_package(PkgConfig REQUIRED)
 # pkg_check_modules(FUSE3 REQUIRED fuse3)
 
-# Source files (start with minimal main)
+# Source files
 set(SOURCES
     src/main.cpp
+    src/cache_manager.cpp
+    src/s3_worker_pool.cpp
 )
 
 # Main executable
