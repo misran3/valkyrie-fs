@@ -21,7 +21,6 @@ MetricsServer::~MetricsServer() {
 
 void MetricsServer::start() {
     std::cout << "Metrics server: Disabled (not implemented in MVP)\n";
-    std::cout << "To view metrics, check statistics at shutdown or use Logger\n";
     // server_thread_ = std::thread(&MetricsServer::server_loop, this);
 }
 
@@ -38,9 +37,9 @@ void MetricsServer::server_loop() {
 }
 
 std::string MetricsServer::generate_prometheus_metrics() {
-    auto cache_stats = cache_.get_stats();
+    const auto& cache_stats = cache_.get_stats();
     const auto& worker_stats = worker_pool_.get_stats();
-    const auto& predictor_stats = predictor_.get_stats();
+    // predictor_stats not needed for MVP metrics
 
     std::ostringstream oss;
 
