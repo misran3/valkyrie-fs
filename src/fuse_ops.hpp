@@ -18,6 +18,7 @@
 #include <string>
 #include <unordered_map>
 #include <shared_mutex>
+#include <atomic>
 
 namespace valkyrie {
 
@@ -38,6 +39,9 @@ struct FuseContext {
 
     void start();
     void stop();
+
+private:
+    std::atomic<bool> is_started{false};
 };
 
 // FUSE operation callbacks
