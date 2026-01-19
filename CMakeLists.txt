@@ -57,3 +57,14 @@ target_link_libraries(test_queue pthread)
 add_executable(test_cache_manager tests/test_cache_manager.cpp src/cache_manager.cpp)
 target_include_directories(test_cache_manager PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(test_cache_manager pthread)
+
+add_executable(test_s3_mock
+    tests/test_s3_mock.cpp
+    src/cache_manager.cpp
+    src/s3_worker_pool.cpp
+)
+target_include_directories(test_s3_mock PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_s3_mock
+    ${AWSSDK_LINK_LIBRARIES}
+    pthread
+)
