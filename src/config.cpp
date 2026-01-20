@@ -169,7 +169,7 @@ void Config::print_usage(const char* program_name) {
               << "Required options:\n"
               << "  --mount PATH            Mount point for the filesystem\n"
               << "  --bucket NAME           S3 bucket name\n"
-              << "  --region REGION         AWS region (e.g., us-west-2)\n\n"
+              << "  --region REGION         AWS region (e.g., us-east-1)\n\n"
               << "Optional options:\n"
               << "  --s3-prefix PREFIX      S3 key prefix (default: empty)\n"
               << "  --cache-size SIZE       Cache size (e.g., 16G, 512M) (default: 16GB)\n"
@@ -181,7 +181,7 @@ void Config::print_usage(const char* program_name) {
               << "  --trace-output PATH     Trace output file (default: trace.json)\n"
               << "  --help, -h              Show this help message\n\n"
               << "Examples:\n"
-              << "  " << program_name << " --mount /tmp/data --bucket my-bucket --region us-west-2\n"
+              << "  " << program_name << " --mount /tmp/data --bucket my-bucket --region us-east-1\n"
               << "  " << program_name << " --mount /mnt/ml --bucket training-data --region eu-west-1 \\\n"
               << "                    --s3-prefix shards --cache-size 32G --workers 16\n";
 }

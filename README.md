@@ -91,7 +91,7 @@ Requires AWS credentials and a test bucket:
 
 ```bash
 export TEST_BUCKET=your-test-bucket
-export TEST_REGION=us-west-2
+export TEST_REGION=us-east-1
 ./scripts/test_s3_integration.sh
 ```
 
@@ -112,7 +112,7 @@ sudo ./build/bin/valkyrie \
   --cache-size 16G \
   --workers 8 \
   --lookahead 32 \
-  --region us-west-2
+  --region us-east-1
 ```
 
 The mount point must exist and be empty:
@@ -312,7 +312,7 @@ curl http://localhost:9090/metrics | grep cache_hit_rate
 Run with basic mount (diagnostic info printed to stdout/stderr):
 
 ```bash
-sudo ./build/bin/valkyrie --mount /mnt/valkyrie --bucket my-data --region us-west-2
+sudo ./build/bin/valkyrie --mount /mnt/valkyrie --bucket my-data --region us-east-1
 ```
 
 Check trace files for detailed operation logs:

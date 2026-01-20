@@ -53,7 +53,7 @@ void test_manifest_loading() {
 
     S3Config config;
     config.bucket = "test";
-    config.region = "us-west-2";
+    config.region = "us-east-1";
 
     S3WorkerPool pool(config, cache, 2);
     Predictor predictor(cache, pool, 3);

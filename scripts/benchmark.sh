@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 # Benchmark configuration
 TEST_BUCKET="${TEST_BUCKET:-valkyrie-test-bucket}"
-TEST_REGION="${TEST_REGION:-us-west-2}"
+TEST_REGION="${TEST_REGION:-us-east-1}"
 MOUNT_POINT="${MOUNT_POINT:-/tmp/valkyrie-bench}"
 TEST_PREFIX="benchmark-$(date +%s)"
 VALKYRIE_BIN="./build/bin/valkyrie"

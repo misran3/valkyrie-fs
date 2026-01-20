@@ -10,7 +10,7 @@ void test_minimal_config() {
         "valkyrie",
         "--mount", "/tmp/valkyrie",
         "--bucket", "my-bucket",
-        "--region", "us-west-2"
+        "--region", "us-east-1"
     };
     int argc = 7;
 
@@ -20,7 +20,7 @@ void test_minimal_config() {
     assert(success);
     assert(config.mount_point == "/tmp/valkyrie");
     assert(config.s3_config.bucket == "my-bucket");
-    assert(config.s3_config.region == "us-west-2");
+    assert(config.s3_config.region == "us-east-1");
 
     // Defaults
     assert(config.cache_size == DEFAULT_CACHE_SIZE);
@@ -80,7 +80,7 @@ void test_invalid_cache_size() {
         "valkyrie",
         "--mount", "/tmp/test",
         "--bucket", "test",
-        "--region", "us-west-2",
+        "--region", "us-east-1",
         "--cache-size", "invalid"
     };
     int argc = 9;

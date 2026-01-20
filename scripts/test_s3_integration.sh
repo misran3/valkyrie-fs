@@ -5,7 +5,7 @@
 set -e
 
 TEST_BUCKET="${TEST_BUCKET:-valkyrie-test-bucket}"
-TEST_REGION="${TEST_REGION:-us-west-2}"
+TEST_REGION="${TEST_REGION:-us-east-1}"
 
 echo "=== Valkyrie S3 Integration Test ==="
 echo "Bucket: $TEST_BUCKET"

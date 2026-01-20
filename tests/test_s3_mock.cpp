@@ -14,7 +14,7 @@ void test_worker_pool_lifecycle() {
 
     S3Config config;
     config.bucket = "test-bucket";
-    config.region = "us-west-2";
+    config.region = "us-east-1";
     config.prefix = "";
 
     S3WorkerPool pool(config, cache, 2);
@@ -34,7 +34,7 @@ void test_task_submission() {
 
     S3Config config;
     config.bucket = "test-bucket";
-    config.region = "us-west-2";
+    config.region = "us-east-1";
 
     S3WorkerPool pool(config, cache, 2);
     pool.start();
