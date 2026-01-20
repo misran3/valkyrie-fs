@@ -278,16 +278,59 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
             return -ENOENT;
         }
 
-        // Add standard entries
+        FuseContext* ctx = get_valkyrie_context();
+
+        // Check if refresh needed (with lock)
+        bool needs_refresh = false;
+        {
+            std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+            needs_refresh = !ctx->dir_cache_.populated || ctx->dir_cache_.is_expired();
+        }
+
+        // Call S3 WITHOUT lock
+        if (needs_refresh) {
+            auto* pool = ctx->get_worker_pool();
+            if (!pool) {
+                std::cerr << "readdir: worker pool not available\n";
+                return -EIO;
+            }
+
+            try {
+                auto objects = pool->list_objects();  // No lock held!
+
+                // Update cache (with lock)
+                std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+
+                // Double-check in case another thread refreshed
+                if (!ctx->dir_cache_.populated || ctx->dir_cache_.is_expired()) {
+                    ctx->dir_cache_.file_list.clear();
+
+                    std::unique_lock<std::shared_mutex> meta_lock(ctx->metadata_mutex);
+                    for (const auto& obj : objects) {
+                        ctx->file_sizes[obj.key] = obj.size;
+                        ctx->dir_cache_.file_list.push_back(obj.key);
+                    }
+                    meta_lock.unlock();
+
+                    ctx->dir_cache_.timestamp = std::chrono::steady_clock::now();
+                    ctx->dir_cache_.populated = true;
+                }
+
+            } catch (const std::exception& e) {
+                std::cerr << "readdir: ListObjects failed: " << e.what() << "\n";
+                return -EIO;
+            }
+        }
+
+        // Return cached results (with lock)
         filler(buf, ".", NULL, 0);
         filler(buf, "..", NULL, 0);
 
-        // List all files from metadata cache
-        FuseContext* ctx = get_valkyrie_context();
-        std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
-
-        for (const auto& [s3_key, size] : ctx->file_sizes) {
-            filler(buf, s3_key.c_str(), NULL, 0);
+        {
+            std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+            for (const auto& key : ctx->dir_cache_.file_list) {
+                filler(buf, key.c_str(), NULL, 0);
+            }
         }
 
         return 0;
@@ -297,7 +340,7 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
         return -EIO;
     }
 }
-#else
+#else  // Linux
 int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
             off_t offset, struct fuse_file_info* fi,
             enum fuse_readdir_flags flags) {
@@ -311,16 +354,59 @@ int readdir(const char* path, void* buf, fuse_fill_dir_t filler,
             return -ENOENT;
         }
 
-        // Add standard entries
+        FuseContext* ctx = get_valkyrie_context();
+
+        // Check if cache needs refresh (with lock)
+        bool needs_refresh = false;
+        {
+            std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+            needs_refresh = !ctx->dir_cache_.populated || ctx->dir_cache_.is_expired();
+        }
+
+        // Refresh from S3 if needed (WITHOUT lock)
+        if (needs_refresh) {
+            auto* pool = ctx->get_worker_pool();
+            if (!pool) {
+                std::cerr << "readdir: worker pool not available\n";
+                return -EIO;
+            }
+
+            try {
+                auto objects = pool->list_objects();
+
+                // Update cache (with lock)
+                std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+
+                // Double-check in case another thread refreshed
+                if (!ctx->dir_cache_.populated || ctx->dir_cache_.is_expired()) {
+                    ctx->dir_cache_.file_list.clear();
+
+                    std::unique_lock<std::shared_mutex> meta_lock(ctx->metadata_mutex);
+                    for (const auto& obj : objects) {
+                        ctx->file_sizes[obj.key] = obj.size;
+                        ctx->dir_cache_.file_list.push_back(obj.key);
+                    }
+                    meta_lock.unlock();
+
+                    ctx->dir_cache_.timestamp = std::chrono::steady_clock::now();
+                    ctx->dir_cache_.populated = true;
+                }
+
+            } catch (const std::exception& e) {
+                std::cerr << "readdir: ListObjects failed: " << e.what() << "\n";
+                return -EIO;
+            }
+        }
+
+        // Return cached results
         filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
         filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
 
-        // List all files from metadata cache
-        FuseContext* ctx = get_valkyrie_context();
-        std::shared_lock<std::shared_mutex> lock(ctx->metadata_mutex);
-
-        for (const auto& [s3_key, size] : ctx->file_sizes) {
-            filler(buf, s3_key.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+        {
+            std::lock_guard<std::mutex> lock(ctx->dir_cache_mutex_);
+            for (const auto& key : ctx->dir_cache_.file_list) {
+                filler(buf, key.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+            }
         }
 
         return 0;
