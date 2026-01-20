@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
     fuse_opt_add_arg(&fuse_argv, config.mount_point.c_str());
     fuse_opt_add_arg(&fuse_argv, "-f");  // Foreground mode
     fuse_opt_add_arg(&fuse_argv, "-o");
-    fuse_opt_add_arg(&fuse_argv, "ro");  // Read-only
+    fuse_opt_add_arg(&fuse_argv, "ro,allow_other,defer_permissions");  // Read-only, allow all users, defer permissions
 
     // Run FUSE main loop
     int ret = fuse_main(fuse_argv.argc, fuse_argv.argv, &ops, g_context.get());

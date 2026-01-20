@@ -3,6 +3,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
+#include <unistd.h>
 
 namespace valkyrie {
 
@@ -183,6 +184,12 @@ int getattr(const char* path, struct stat* stbuf) {
         if (std::strcmp(path, "/") == 0) {
             stbuf->st_mode = S_IFDIR | 0755;
             stbuf->st_nlink = 2;
+            stbuf->st_ino = 1;
+            stbuf->st_uid = getuid();
+            stbuf->st_gid = getgid();
+            stbuf->st_size = 4096;
+            stbuf->st_blocks = 8;
+            stbuf->st_blksize = 4096;
             return 0;
         }
 
