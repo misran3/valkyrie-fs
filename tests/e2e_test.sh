@@ -31,7 +31,7 @@ cleanup() {
     # Unmount filesystem
     if mount | grep -q "$MOUNT_POINT"; then
         echo "Unmounting $MOUNT_POINT..."
-        umount "$MOUNT_POINT" 2>/dev/null || sudo umount "$MOUNT_POINT" 2>/dev/null || true
+        umount "$MOUNT_POINT" 2>/dev/null || sudo -A umount "$MOUNT_POINT" 2>/dev/null || true
         sleep 1
     fi
 
@@ -176,7 +176,8 @@ echo "  Mount: $MOUNT_POINT"
 echo "  Prefix: $TEST_PREFIX"
 
 # Start in background and capture PID
-sudo "$VALKYRIE_BIN" \
+# Use -E to preserve environment variables (AWS_PROFILE, AWS_REGION, etc.)
+sudo -A -E "$VALKYRIE_BIN" \
     --bucket "$TEST_BUCKET" \
     --region "$TEST_REGION" \
     --mount "$MOUNT_POINT" \
@@ -213,12 +214,20 @@ fi
 print_section "Test 1: List Files"
 
 echo "Listing files in $MOUNT_POINT..."
+echo ""
+echo "=== Valkyrie-FS Log (before ls) ==="
+cat "$TEMP_DIR/valkyrie.log"
+echo "=== End of log ==="
+echo ""
 files_found=$(ls -la "$MOUNT_POINT" | grep -c "testfile" || true)
 
 if [ "$files_found" -eq "$NUM_TEST_FILES" ]; then
     print_result 0 "Found all $NUM_TEST_FILES test files"
 else
     print_result 1 "Expected $NUM_TEST_FILES files, found $files_found"
+    # Copy log for debugging
+    cp "$TEMP_DIR/valkyrie.log" /tmp/e2e-test-failed.log 2>/dev/null || true
+    echo "Log copied to /tmp/e2e-test-failed.log"
 fi
 
 ls -lh "$MOUNT_POINT"
