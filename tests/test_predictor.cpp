@@ -1,4 +1,5 @@
 #include "../src/predictor.hpp"
+#include <aws/core/Aws.h>
 #include <cassert>
 #include <iostream>
 
@@ -66,6 +67,10 @@ void test_manifest_loading() {
 }
 
 int main() {
+    // Initialize AWS SDK
+    Aws::SDKOptions sdk_options;
+    Aws::InitAPI(sdk_options);
+
     test_simple_sequential();
     test_zero_padded();
     test_no_padding();
@@ -73,5 +78,8 @@ int main() {
     test_rollover();
     test_manifest_loading();
     std::cout << "All Predictor tests passed!\n";
+
+    // Shutdown AWS SDK
+    Aws::ShutdownAPI(sdk_options);
     return 0;
 }

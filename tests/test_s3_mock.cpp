@@ -1,5 +1,6 @@
 #include "../src/s3_worker_pool.hpp"
 #include "../src/cache_manager.hpp"
+#include <aws/core/Aws.h>
 #include <cassert>
 #include <iostream>
 #include <chrono>
@@ -55,6 +56,10 @@ void test_task_submission() {
 }
 
 int main() {
+    // Initialize AWS SDK
+    Aws::SDKOptions sdk_options;
+    Aws::InitAPI(sdk_options);
+
     std::cout << "=== S3WorkerPool Mock Tests ===\n";
     std::cout << "Note: These tests verify mechanics, not actual S3 downloads\n";
     std::cout << "For real S3 tests, use scripts/test_s3_integration.sh\n\n";
@@ -63,5 +68,8 @@ int main() {
     test_task_submission();
 
     std::cout << "\nAll mock tests passed!\n";
+
+    // Shutdown AWS SDK
+    Aws::ShutdownAPI(sdk_options);
     return 0;
 }
