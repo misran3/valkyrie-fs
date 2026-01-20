@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Performance Benchmarking Script for Valkyrie-FS
 # Measures sequential read throughput, cache hit rates, and time to first byte
+# Requires: bash 4.3+ (for nameref support), gdate (GNU coreutils), bc
 
 set -e  # Exit on error
 set -u  # Exit on undefined variable
@@ -44,9 +45,9 @@ cleanup() {
     if mount | grep -q "$MOUNT_POINT"; then
         echo "Unmounting $MOUNT_POINT..."
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            umount "$MOUNT_POINT" 2>/dev/null || sudo umount "$MOUNT_POINT" 2>/dev/null || true
+            umount "$MOUNT_POINT" 2>/dev/null || sudo -A umount "$MOUNT_POINT" 2>/dev/null || true
         else
-            fusermount -u "$MOUNT_POINT" 2>/dev/null || sudo umount "$MOUNT_POINT" 2>/dev/null || true
+            fusermount -u "$MOUNT_POINT" 2>/dev/null || sudo -A umount "$MOUNT_POINT" 2>/dev/null || true
         fi
         sleep 1
     fi
@@ -54,9 +55,9 @@ cleanup() {
     # Kill Valkyrie-FS process
     if [ -n "$VALKYRIE_PID" ] && kill -0 "$VALKYRIE_PID" 2>/dev/null; then
         echo "Stopping Valkyrie-FS (PID: $VALKYRIE_PID)..."
-        sudo kill "$VALKYRIE_PID" 2>/dev/null || kill "$VALKYRIE_PID" 2>/dev/null || true
+        sudo -A kill "$VALKYRIE_PID" 2>/dev/null || kill "$VALKYRIE_PID" 2>/dev/null || true
         sleep 1
-        sudo kill -9 "$VALKYRIE_PID" 2>/dev/null || kill -9 "$VALKYRIE_PID" 2>/dev/null || true
+        sudo -A kill -9 "$VALKYRIE_PID" 2>/dev/null || kill -9 "$VALKYRIE_PID" 2>/dev/null || true
     fi
 
     # Remove mount point
@@ -261,9 +262,9 @@ for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     echo -n "[$idx/$NUM_TEST_FILES] Downloading $filename directly from S3... "
 
     # Time the download
-    read_start=$(date +%s%3N)
+    read_start=$(gdate +%s%3N)
     aws s3 cp "$s3path" "$download_path" --region "$TEST_REGION" --quiet
-    read_end=$(date +%s%3N)
+    read_end=$(gdate +%s%3N)
     read_ms=$((read_end - read_start))
     S3_DIRECT_TIMES[$i]=$read_ms
 
@@ -299,7 +300,8 @@ echo "  Workers: $NUM_WORKERS"
 echo ""
 
 # Start in background and capture PID
-sudo "$VALKYRIE_BIN" \
+# Use -E to preserve environment variables (AWS_PROFILE, AWS_REGION, etc.)
+sudo -A -E "$VALKYRIE_BIN" \
     --bucket "$TEST_BUCKET" \
     --region "$TEST_REGION" \
     --mount "$MOUNT_POINT" \
@@ -339,6 +341,10 @@ fi
 # Give it a moment to stabilize
 sleep 2
 
+# Populate metadata cache by listing directory first
+# (Required for file access - see docs/known-path-access-limitation.md)
+ls "$MOUNT_POINT" > /dev/null 2>&1
+
 # Benchmark 1: Cold Cache - Time to First Byte and Full Read
 print_section "Benchmark 1: Cold Cache Performance"
 echo "Testing cold cache reads (first access from S3)..."
@@ -351,16 +357,16 @@ for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     echo -n "[$((i+1))/$NUM_TEST_FILES] Reading $testfile... "
 
     # Time to first byte (read first 1KB)
-    ttfb_start=$(date +%s%3N)
+    ttfb_start=$(gdate +%s%3N)
     dd if="$mounted_file" of=/dev/null bs=1024 count=1 2>/dev/null
-    ttfb_end=$(date +%s%3N)
+    ttfb_end=$(gdate +%s%3N)
     ttfb_ms=$((ttfb_end - ttfb_start))
     COLD_TTFB_TIMES[$i]=$ttfb_ms
 
     # Full file read
-    read_start=$(date +%s%3N)
+    read_start=$(gdate +%s%3N)
     dd if="$mounted_file" of=/dev/null bs=1m 2>/dev/null
-    read_end=$(date +%s%3N)
+    read_end=$(gdate +%s%3N)
     read_ms=$((read_end - read_start))
     COLD_READ_TIMES[$i]=$read_ms
 
@@ -392,16 +398,16 @@ for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     echo -n "[$((i+1))/$NUM_TEST_FILES] Reading $testfile... "
 
     # Time to first byte (read first 1KB)
-    ttfb_start=$(date +%s%3N)
+    ttfb_start=$(gdate +%s%3N)
     dd if="$mounted_file" of=/dev/null bs=1024 count=1 2>/dev/null
-    ttfb_end=$(date +%s%3N)
+    ttfb_end=$(gdate +%s%3N)
     ttfb_ms=$((ttfb_end - ttfb_start))
     WARM_TTFB_TIMES[$i]=$ttfb_ms
 
     # Full file read
-    read_start=$(date +%s%3N)
+    read_start=$(gdate +%s%3N)
     dd if="$mounted_file" of=/dev/null bs=1m 2>/dev/null
-    read_end=$(date +%s%3N)
+    read_end=$(gdate +%s%3N)
     read_ms=$((read_end - read_start))
     WARM_READ_TIMES[$i]=$read_ms
 
@@ -435,7 +441,7 @@ print_section "Benchmark 3: Data Integrity Verification"
 echo "Verifying MD5 checksums to ensure data integrity..."
 echo ""
 
-seq_start=$(date +%s%3N)
+seq_start=$(gdate +%s%3N)
 
 for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     testfile="${TEST_FILES[$i]}"
@@ -460,7 +466,7 @@ for i in $(seq 0 $((NUM_TEST_FILES-1))); do
     fi
 done
 
-seq_end=$(date +%s%3N)
+seq_end=$(gdate +%s%3N)
 seq_duration_ms=$((seq_end - seq_start))
 seq_duration_s=$(echo "scale=3; $seq_duration_ms / 1000" | bc -l)
 
