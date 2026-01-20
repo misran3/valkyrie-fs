@@ -19,8 +19,25 @@
 #include <unordered_map>
 #include <shared_mutex>
 #include <atomic>
+#include <chrono>
+#include <vector>
+#include <mutex>
 
 namespace valkyrie {
+
+// Directory listing cache with TTL expiration
+struct DirectoryCache {
+    std::vector<std::string> file_list;  // Cached S3 keys (without prefix)
+    std::chrono::steady_clock::time_point timestamp{};  // Initialize to epoch
+    bool populated = false;
+
+    bool is_expired(std::chrono::seconds ttl = std::chrono::seconds(300)) const {
+        if (!populated) return true;  // Unpopulated cache is always expired
+        auto now = std::chrono::steady_clock::now();
+        auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
+        return age >= ttl;  // Use >= for correct TTL boundary
+    }
+};
 
 // Global context passed to FUSE callbacks
 struct FuseContext {
@@ -33,6 +50,10 @@ struct FuseContext {
     // File metadata cache (s3_key -> size)
     std::unordered_map<std::string, size_t> file_sizes;
     mutable std::shared_mutex metadata_mutex;
+
+    // Directory listing cache
+    DirectoryCache dir_cache_;
+    std::mutex dir_cache_mutex_;
 
     FuseContext(const Config& cfg);
     ~FuseContext();
