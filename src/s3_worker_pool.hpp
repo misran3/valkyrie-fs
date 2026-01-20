@@ -33,6 +33,12 @@ struct PrefetchTask {
         , completion(std::make_shared<std::promise<bool>>()) {}
 };
 
+// Information about an S3 object
+struct ObjectInfo {
+    std::string key;      // S3 key (relative to prefix)
+    size_t size;          // Object size in bytes
+};
+
 struct S3Config {
     std::string bucket;
     std::string region;
@@ -62,6 +68,11 @@ public:
 
     // Shutdown workers
     void shutdown();
+
+    // List all objects under configured prefix
+    // Handles pagination automatically
+    // Throws std::runtime_error on S3 API failure
+    std::vector<ObjectInfo> list_objects();
 
     // Statistics
     struct Stats {
