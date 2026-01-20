@@ -158,9 +158,51 @@ bool S3WorkerPool::download_chunk(const PrefetchTask& task) {
 }
 
 std::vector<ObjectInfo> S3WorkerPool::list_objects() {
-    std::vector<ObjectInfo> results;
+    static constexpr int S3_LIST_MAX_KEYS = 1000;
 
-    // TODO: Implement ListObjectsV2 with pagination
+    std::vector<ObjectInfo> results;
+    results.reserve(S3_LIST_MAX_KEYS);
+
+    Aws::S3::Model::ListObjectsV2Request request;
+    request.SetBucket(config_.bucket);
+
+    // Set prefix if configured
+    if (!config_.prefix.empty()) {
+        request.SetPrefix(config_.prefix + "/");
+    }
+
+    request.SetMaxKeys(S3_LIST_MAX_KEYS);  // AWS maximum
+
+    auto outcome = s3_client_->ListObjectsV2(request);
+    if (!outcome.IsSuccess()) {
+        const auto& error = outcome.GetError();
+        throw std::runtime_error("ListObjectsV2 failed: " +
+            std::string(error.GetMessage()));
+    }
+
+    const auto& result = outcome.GetResult();
+
+    // Warn if results are truncated
+    if (result.GetIsTruncated()) {
+        std::cout << "Warning: S3 listing truncated at " << S3_LIST_MAX_KEYS
+                  << " objects. Consider pagination for complete results.\n";
+    }
+
+    // Extract object info
+    for (const auto& obj : result.GetContents()) {
+        std::string full_key = obj.GetKey();
+
+        // Strip prefix to get relative key
+        std::string relative_key = full_key;
+        if (!config_.prefix.empty()) {
+            size_t prefix_len = config_.prefix.length() + 1;  // +1 for "/"
+            if (full_key.length() >= prefix_len) {
+                relative_key = full_key.substr(prefix_len);
+            }
+        }
+
+        results.push_back({relative_key, static_cast<size_t>(obj.GetSize())});
+    }
 
     return results;
 }
