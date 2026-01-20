@@ -69,8 +69,9 @@ public:
     // Shutdown workers
     void shutdown();
 
-    // List objects under configured prefix (up to 1000 objects)
-    // Warns if results are truncated. Does not implement pagination.
+    // List all objects under configured prefix
+    // Handles pagination automatically (retrieves all objects, max 1M)
+    // WARNING: May block for tens of seconds on very large buckets (>10k objects)
     // Throws std::runtime_error on S3 API failure
     std::vector<ObjectInfo> list_objects();
 
