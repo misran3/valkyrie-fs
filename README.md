@@ -10,6 +10,23 @@ AI training workloads read thousands of sequential shards from S3. Without prefe
 
 Valkyrie-FS intelligently prefetches upcoming shards while the GPU processes current data, achieving 95%+ GPU utilization.
 
+## Performance
+
+Benchmarked on macOS with 10MB test files to S3 (us-east-1):
+
+| Metric | Direct S3 | Cold Cache | Warm Cache | Improvement |
+|--------|-----------|------------|------------|-------------|
+| Throughput | 1.10 MB/s | 1.55 MB/s | **15.06 MB/s** | **13.6x** |
+| Time to First Byte | N/A | 1.67s | **10ms** | **99.4%** |
+| Cache Hit Rate | 0% | 0% | **100%** | - |
+
+**Key Results:**
+- **13.6x faster** than direct S3 downloads on cached reads
+- **99.4% reduction** in time to first byte (warm cache)
+- **100% data integrity** verified via MD5 checksums
+
+Real-world performance depends on network speed, file size, and access patterns. Sequential workloads see the greatest benefit from prefetching.
+
 ## Features
 
 - **Chunk-based caching**: 4MB chunks for instant response on large files
