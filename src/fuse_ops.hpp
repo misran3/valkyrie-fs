@@ -61,6 +61,17 @@ struct FuseContext {
     void start();
     void stop();
 
+    // Non-owning pointer to worker pool for directory listing operations.
+    // Valid only after start() and before stop() - use get_worker_pool() for safe access.
+    // LIFECYCLE: Set in start(), cleared in stop().
+    // Ownership remains with the unique_ptr member.
+    S3WorkerPool* worker_pool_ptr = nullptr;
+
+    // Safe accessor that checks if filesystem is started
+    S3WorkerPool* get_worker_pool() const {
+        return is_started.load() ? worker_pool_ptr : nullptr;
+    }
+
 private:
     std::atomic<bool> is_started{false};
 };

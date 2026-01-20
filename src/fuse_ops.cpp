@@ -54,6 +54,9 @@ void FuseContext::start() {
         return;
     }
 
+    // Expose worker pool for directory listing
+    worker_pool_ptr = worker_pool.get();
+
     worker_pool->start();
     predictor->start();
     std::cout << "Valkyrie-FS started successfully\n";
@@ -74,6 +77,9 @@ void FuseContext::stop() {
     if (worker_pool) {
         worker_pool->shutdown();
     }
+
+    // Clear raw pointer to prevent use-after-shutdown
+    worker_pool_ptr = nullptr;
 
     std::cout << "Valkyrie-FS stopped\n";
 }
