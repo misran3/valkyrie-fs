@@ -13,9 +13,6 @@ S3WorkerPool::S3WorkerPool(const S3Config& config,
     , num_workers_(num_workers)
     , shutdown_flag_(false) {
 
-    // Initialize AWS SDK
-    Aws::InitAPI(sdk_options_);
-
     // Create S3 client
     Aws::Client::ClientConfiguration client_config;
     client_config.region = config_.region;
@@ -30,9 +27,6 @@ S3WorkerPool::S3WorkerPool(const S3Config& config,
 
 S3WorkerPool::~S3WorkerPool() {
     shutdown();
-
-    // Cleanup AWS SDK
-    Aws::ShutdownAPI(sdk_options_);
 }
 
 void S3WorkerPool::start() {

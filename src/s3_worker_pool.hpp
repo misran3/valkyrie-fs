@@ -86,7 +86,6 @@ private:
     std::atomic<bool> shutdown_flag_;
 
     // AWS SDK components
-    Aws::SDKOptions sdk_options_;
     std::unique_ptr<Aws::S3::S3Client> s3_client_;
 
     Stats stats_;

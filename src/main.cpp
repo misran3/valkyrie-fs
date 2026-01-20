@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include "fuse_ops.hpp"
+#include <aws/core/Aws.h>
 #include <iostream>
 #include <csignal>
 #include <memory>
@@ -19,9 +20,14 @@ void signal_handler(int signum) {
 int main(int argc, char* argv[]) {
     std::cout << "Valkyrie-FS v0.1.0\n";
 
+    // Initialize AWS SDK once at program start
+    Aws::SDKOptions sdk_options;
+    Aws::InitAPI(sdk_options);
+
     // Parse configuration
     Config config;
     if (!config.parse(argc, argv)) {
+        Aws::ShutdownAPI(sdk_options);
         return 1;
     }
 
@@ -54,6 +60,9 @@ int main(int argc, char* argv[]) {
     int ret = fuse_main(fuse_argv.argc, fuse_argv.argv, &ops, g_context.get());
 
     fuse_opt_free_args(&fuse_argv);
+
+    // Shutdown AWS SDK once at program end (after all destructors)
+    Aws::ShutdownAPI(sdk_options);
 
     return ret;
 }
