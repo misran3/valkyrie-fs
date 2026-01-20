@@ -1,6 +1,7 @@
 #include "s3_worker_pool.hpp"
 #include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/s3/model/HeadObjectRequest.h>
+#include <aws/s3/model/ListObjectsV2Request.h>
 #include <iostream>
 
 namespace valkyrie {
@@ -154,6 +155,14 @@ bool S3WorkerPool::download_chunk(const PrefetchTask& task) {
     stats_.bytes_downloaded += bytes_read;
 
     return true;
+}
+
+std::vector<ObjectInfo> S3WorkerPool::list_objects() {
+    std::vector<ObjectInfo> results;
+
+    // TODO: Implement ListObjectsV2 with pagination
+
+    return results;
 }
 
 }  // namespace valkyrie
